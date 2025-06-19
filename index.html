@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Memória de Cores</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+</head>
+<body>
+    <div class="container">
+        <h1>Jogo de Memória</h1>
+        <div class="game-info">
+            <p>Nível: <span id="level">1</span></p>
+            <p>Sequência: <span id="sequence-length">1</span> cores</p>
+        </div>
+        <div class="game-container">
+            <div class="game-board" id="game-board">
+                <!-- Os quadrados serão gerados pelo JavaScript -->
+            </div>
+        </div>
+        <div class="controls">
+            <button id="start-btn">Iniciar Jogo</button>
+            <button id="restart-btn" disabled>Reiniciar</button>
+        </div>
+        <div class="message" id="message"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
