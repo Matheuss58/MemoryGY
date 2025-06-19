@@ -139,3 +139,25 @@ button:hover:not(:disabled) {
         height: 70px;
     }
 }
+/* Adicione ao final do seu arquivo CSS */
+
+.install-container {
+    margin-top: 20px;
+    text-align: center;
+    display: none;
+}
+
+.install-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.install-btn:hover {
+    background-color: #0b7dda;
+}

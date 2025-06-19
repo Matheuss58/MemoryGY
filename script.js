@@ -5,12 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const levelDisplay = document.getElementById('level');
     const sequenceLengthDisplay = document.getElementById('sequence-length');
     const messageDisplay = document.getElementById('message');
+    const installBtn = document.getElementById('install-btn');
+    const installContainer = document.getElementById('install-container');
     
     let squares = [];
     let sequence = [];
     let playerSequence = [];
     let level = 1;
     let gameStarted = false;
+    let deferredPrompt;
     
     // Cores distintas para os 9 quadrados
     const colors = [
@@ -162,21 +165,58 @@ document.addEventListener('DOMContentLoaded', () => {
         startGame();
     }
     
-    // Event listeners
+    // Event listeners para o jogo
     startBtn.addEventListener('click', startGame);
     restartBtn.addEventListener('click', restartGame);
     
-    // Inicializa o jogo
-    initializeBoard();
-    
     // Configuração para PWA (Progressive Web App)
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Impede o prompt automático
+        e.preventDefault();
+        // Guarda o evento para que possa ser acionado depois
+        deferredPrompt = e;
+        // Mostra o botão de instalação
+        installContainer.style.display = 'block';
+    });
+    
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Mostra o prompt de instalação
+            deferredPrompt.prompt();
+            // Espera pelo resultado
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('Usuário aceitou a instalação');
+                installContainer.style.display = 'none';
+            }
+            deferredPrompt = null;
+        }
+    });
+    
+    window.addEventListener('appinstalled', () => {
+        console.log('App instalado com sucesso');
+        installContainer.style.display = 'none';
+        deferredPrompt = null;
+    });
+    
+    // Verifica se o app já está instalado
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        installContainer.style.display = 'none';
+    }
+    
+    // Service Worker registration
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js').then(registration => {
-                console.log('ServiceWorker registration successful');
-            }).catch(err => {
-                console.log('ServiceWorker registration failed: ', err);
-            });
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registrado com sucesso:', registration.scope);
+                })
+                .catch(err => {
+                    console.log('Falha no registro do ServiceWorker:', err);
+                });
         });
     }
+    
+    // Inicializa o jogo
+    initializeBoard();
 });
