@@ -3,6 +3,7 @@
     "short_name": "Memória Cores",
     "start_url": ".",
     "display": "standalone",
+    "prefer_related_applications": false,
     "background_color": "#ffffff",
     "theme_color": "#4CAF50",
     "description": "Um divertido jogo de memória com cores",
@@ -20,4 +21,5 @@
             "purpose": "any maskable"
         }
     ]
+
 }
