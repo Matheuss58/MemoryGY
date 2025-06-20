@@ -21,6 +21,42 @@ document.addEventListener('DOMContentLoaded', () => {
         installContainer: document.getElementById('install-container')
     };
 
+    // Adicione no início do script, após a definição dos elementos
+function setupButtonEffects() {
+    const buttons = document.querySelectorAll('button, .square');
+    
+    buttons.forEach(btn => {
+        // Evento para desktop
+        btn.addEventListener('mousedown', () => {
+            btn.style.transform = 'scale(0.96)';
+            btn.style.filter = 'brightness(0.95)';
+        });
+        
+        // Evento para mobile
+        btn.addEventListener('touchstart', () => {
+            btn.style.transform = 'scale(0.96)';
+            btn.style.filter = 'brightness(0.95)';
+        }, { passive: true });
+        
+        const resetButton = () => {
+            btn.style.transform = '';
+            btn.style.filter = '';
+        };
+        
+        btn.addEventListener('mouseup', resetButton);
+        btn.addEventListener('mouseleave', resetButton);
+        btn.addEventListener('touchend', resetButton, { passive: true });
+    });
+}
+
+// Chame esta função no final da função init()
+function init() {
+    setupBoard();
+    setupEventListeners();
+    setupPWA();
+    setupButtonEffects(); // Adicione esta linha
+    registerServiceWorker();
+}
     const COLORS = [
         '#FF5733', '#33FF57', '#3357FF', 
         '#F3FF33', '#FF33F3', '#33FFF3',
@@ -115,15 +151,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function handleBoardClick(e) {
-        if (!gameState.active || !gameState.awaitClick) return;
-        
-        const square = e.target.closest('.square');
-        if (!square) return;
-        
-        const index = parseInt(square.dataset.index);
-        processPlayerInput(index).catch(handleCriticalError);
-    }
+function handleBoardClick(e) {
+    if (!gameState.active || !gameState.awaitClick) return;
+    
+    const square = e.target.closest('.square');
+    if (!square) return;
+    
+    // Feedback visual imediato
+    square.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        square.style.transform = '';
+    }, 100);
+    
+    const index = parseInt(square.dataset.index);
+    processPlayerInput(index).catch(handleCriticalError);
+}
 
     async function processPlayerInput(index) {
         gameState.awaitClick = false;
@@ -171,30 +213,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupPWA() {
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            elements.installContainer.style.display = 'block';
-        });
-
+    // Esconde o botão inicialmente
+    elements.installContainer.style.display = 'none';
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('beforeinstallprompt event fired');
+        // Previne a prompt automática
+        e.preventDefault();
+        
+        // Guarda o evento para usar depois
+        window.deferredPrompt = e;
+        
+        // Mostra o botão de instalação
+        elements.installContainer.style.display = 'block';
+        
+        // Configura o clique do botão
         elements.installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
+            console.log('Install button clicked');
+            if (window.deferredPrompt) {
+                // Mostra a prompt de instalação
+                window.deferredPrompt.prompt();
+                
+                // Espera pela decisão do usuário
+                const { outcome } = await window.deferredPrompt.userChoice;
+                
+                console.log(`User response: ${outcome}`);
+                
+                // Limpa o prompt guardado
+                window.deferredPrompt = null;
+                
+                // Esconde o botão
                 elements.installContainer.style.display = 'none';
             }
-            
-            deferredPrompt = null;
         });
+    });
 
-        window.addEventListener('appinstalled', () => {
-            elements.installContainer.style.display = 'none';
-            deferredPrompt = null;
-        });
-    }
+    // Esconde o botão se o app já estiver instalado
+    window.addEventListener('appinstalled', () => {
+        console.log('PWA installed');
+        window.deferredPrompt = null;
+        elements.installContainer.style.display = 'none';
+    });
+}
 
     function registerServiceWorker() {
         if ('serviceWorker' in navigator) {

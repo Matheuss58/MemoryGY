@@ -1,28 +1,32 @@
-const CACHE_NAME = 'color-memory-v3';
+const CACHE_NAME = 'color-memory-v4';
 const ASSETS_TO_CACHE = [
-    '/',
-    '/index.html',
-    '/styles.css',
-    '/script.js',
-    '/manifest.json',
-    '/icon-192x192.png',
-    '/icon-512x512.png'
+    './',
+    './index.html',
+    './styles.css',
+    './script.js',
+    './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
+    console.log('Service Worker installing');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+            .then((cache) => {
+                console.log('Caching assets');
+                return cache.addAll(ASSETS_TO_CACHE);
+            })
             .then(() => self.skipWaiting())
     );
 });
 
 self.addEventListener('activate', (event) => {
+    console.log('Service Worker activating');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cache) => {
                     if (cache !== CACHE_NAME) {
+                        console.log('Deleting old cache');
                         return caches.delete(cache);
                     }
                 })
