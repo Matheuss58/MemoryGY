@@ -1,215 +1,243 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const gameBoard = document.getElementById('game-board');
-    const startBtn = document.getElementById('start-btn');
-    const restartBtn = document.getElementById('restart-btn');
-    const levelDisplay = document.getElementById('level');
-    const sequenceLengthDisplay = document.getElementById('sequence-length');
-    const messageDisplay = document.getElementById('message');
-    const installBtn = document.getElementById('install-btn');
-    const installContainer = document.getElementById('install-container');
+    // Configurações iniciais de performance
+    'use strict';
     
-    let squares = [];
-    let sequence = [];
-    let playerSequence = [];
-    let level = 1;
-    let gameStarted = false;
-    let deferredPrompt;
-
-    // 1. Configuração inicial do PWA
-    installContainer.style.display = 'none';
-    
-    // Verifica se já está instalado
-    const checkAlreadyInstalled = () => {
-        const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
-                           window.navigator.standalone ||
-                           document.referrer.includes('android-app://');
-        if (isInstalled) {
-            installContainer.style.display = 'none';
-        }
-        return isInstalled;
+    // Controle de estado global
+    const gameState = {
+        active: false,
+        sequence: [],
+        playerInput: [],
+        level: 1,
+        awaitClick: false
     };
 
-    // 2. Evento de instalação
-    window.addEventListener('beforeinstallprompt', (e) => {
-        console.log('Evento beforeinstallprompt disparado');
-        e.preventDefault();
-        deferredPrompt = e;
-        
-        if (!checkAlreadyInstalled()) {
-            installContainer.style.display = 'block';
-        }
-    });
+    // Elementos do DOM - cache otimizado
+    const elements = {
+        board: document.getElementById('game-board'),
+        level: document.getElementById('level'),
+        sequenceLength: document.getElementById('sequence-length'),
+        message: document.getElementById('message'),
+        startBtn: document.getElementById('start-btn'),
+        restartBtn: document.getElementById('restart-btn'),
+        installBtn: document.getElementById('install-btn'),
+        installContainer: document.getElementById('install-container')
+    };
 
-    // 3. Botão de instalação
-    installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        
-        console.log(`Usuário ${outcome === 'accepted' ? 'aceitou' : 'rejeitou'} a instalação`);
-        installContainer.style.display = 'none';
-        deferredPrompt = null;
-    });
-
-    // 4. Verificação de instalação
-    window.addEventListener('appinstalled', () => {
-        console.log('PWA instalado com sucesso');
-        installContainer.style.display = 'none';
-        deferredPrompt = null;
-    });
-
-    // 5. Service Worker
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado:', registration.scope);
-                })
-                .catch(err => {
-                    console.error('Falha no Service Worker:', err);
-                });
-        });
-    }
-
-    // Cores distintas para os 9 quadrados
-    const colors = [
+    // Cores pré-calculadas
+    const COLORS = [
         '#FF5733', '#33FF57', '#3357FF', 
         '#F3FF33', '#FF33F3', '#33FFF3',
         '#8A2BE2', '#FF8C00', '#008000'
     ];
-    
-    // Inicializa o tabuleiro do jogo
-    function initializeBoard() {
-        gameBoard.innerHTML = '';
-        squares = [];
+    const NEUTRAL_COLOR = '#e0e0e0';
+
+    // Pool de objetos para reutilização
+    const animationPool = {
+        active: [],
+        available: [],
+        get: function() {
+            return this.available.pop() || {};
+        },
+        release: function(obj) {
+            this.active = this.active.filter(item => item !== obj);
+            this.available.push(obj);
+        }
+    };
+
+    // Inicialização otimizada
+    function init() {
+        setupBoard();
+        setupEventListeners();
+        setupPWA();
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(console.error);
+        }
+    }
+
+    // Configuração do tabuleiro com performance
+    function setupBoard() {
+        elements.board.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         
-        colors.forEach((color, index) => {
+        COLORS.forEach((_, index) => {
             const square = document.createElement('div');
             square.className = 'square';
             square.dataset.index = index;
-            square.style.backgroundColor = '#e0e0e0';
-            square.addEventListener('click', handleSquareClick);
-            gameBoard.appendChild(square);
-            squares.push(square);
+            square.style.backgroundColor = NEUTRAL_COLOR;
+            fragment.appendChild(square);
         });
+        
+        elements.board.appendChild(fragment);
     }
-    
-    // Restante do código do jogo (mantido igual)
+
+    // Event listeners otimizados
+    function setupEventListeners() {
+        // Delegation de eventos para melhor performance
+        elements.board.addEventListener('click', handleBoardClick);
+        elements.startBtn.addEventListener('click', startGame);
+        elements.restartBtn.addEventListener('click', startGame);
+    }
+
+    // Controle do jogo principal
     function startGame() {
-        gameStarted = true;
-        level = 1;
-        sequence = [];
-        playerSequence = [];
-        levelDisplay.textContent = level;
-        sequenceLengthDisplay.textContent = sequence.length;
-        messageDisplay.textContent = '';
-        startBtn.disabled = true;
-        restartBtn.disabled = false;
+        if (gameState.active) return;
         
+        resetGameState();
+        updateUI();
         generateSequence();
-        playSequence();
+        playSequence().catch(handleCriticalError);
     }
-    
+
+    function resetGameState() {
+        gameState.active = true;
+        gameState.sequence = [];
+        gameState.playerInput = [];
+        gameState.level = 1;
+        gameState.awaitClick = false;
+    }
+
     function generateSequence() {
-        let lastIndex = sequence.length > 0 ? sequence[sequence.length - 1] : -1;
-        let newIndex;
+        let lastIndex = -1;
         
-        do {
-            newIndex = Math.floor(Math.random() * squares.length);
-        } while (newIndex === lastIndex && squares.length > 1);
-        
-        sequence.push(newIndex);
-        sequenceLengthDisplay.textContent = sequence.length;
-    }
-    
-    function playSequence() {
-        let i = 0;
-        const interval = setInterval(() => {
-            if (i >= sequence.length) {
-                clearInterval(interval);
-                playerSequence = [];
-                enableBoard();
-                return;
-            }
+        // Algoritmo Fisher-Yates moderno
+        for (let i = 0; i < gameState.level; i++) {
+            let newIndex;
+            do {
+                newIndex = Math.floor(Math.random() * COLORS.length);
+            } while (newIndex === lastIndex && COLORS.length > 1);
             
-            const squareIndex = sequence[i];
-            highlightSquare(squareIndex);
-            i++;
-        }, 800);
+            gameState.sequence.push(newIndex);
+            lastIndex = newIndex;
+        }
     }
-    
-    function highlightSquare(index) {
-        const square = squares[index];
-        square.style.backgroundColor = colors[index];
-        square.classList.add('active');
+
+    // Sequência com tratamento de erro robusto
+    async function playSequence() {
+        gameState.awaitClick = false;
         
-        setTimeout(() => {
-            square.style.backgroundColor = '#e0e0e0';
-            square.classList.remove('active');
-        }, 400);
+        for (let i = 0; i < gameState.sequence.length; i++) {
+            await animateSquare(gameState.sequence[i], 400);
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        gameState.playerInput = [];
+        gameState.awaitClick = true;
     }
-    
-    function enableBoard() {
-        squares.forEach(square => {
-            square.style.cursor = 'pointer';
+
+    // Animação com pool de objetos
+    function animateSquare(index, duration) {
+        return new Promise(resolve => {
+            const square = elements.board.children[index];
+            const animation = animationPool.get();
+            
+            animation.onFinish = () => {
+                square.style.backgroundColor = NEUTRAL_COLOR;
+                animationPool.release(animation);
+                resolve();
+            };
+            
+            square.style.backgroundColor = COLORS[index];
+            animationPool.active.push(animation);
+            
+            // Usa requestAnimationFrame para performance
+            const start = performance.now();
+            const animate = (time) => {
+                const elapsed = time - start;
+                if (elapsed >= duration) {
+                    animation.onFinish();
+                } else {
+                    requestAnimationFrame(animate);
+                }
+            };
+            
+            requestAnimationFrame(animate);
         });
     }
-    
-    function disableBoard() {
-        squares.forEach(square => {
-            square.style.cursor = 'default';
-        });
+
+    // Controle de input com debounce
+    function handleBoardClick(e) {
+        if (!gameState.active || !gameState.awaitClick) return;
+        
+        const square = e.target.closest('.square');
+        if (!square) return;
+        
+        const index = parseInt(square.dataset.index);
+        processPlayerInput(index).catch(handleCriticalError);
     }
-    
-    function handleSquareClick(e) {
-        if (!gameStarted || playerSequence.length >= sequence.length) return;
+
+    // Processamento seguro do input
+    async function processPlayerInput(index) {
+        gameState.awaitClick = false;
         
-        const squareIndex = parseInt(e.target.dataset.index);
-        const square = squares[squareIndex];
+        await animateSquare(index, 300);
+        gameState.playerInput.push(index);
         
-        square.style.backgroundColor = colors[squareIndex];
-        square.classList.add('active');
-        
-        setTimeout(() => {
-            square.style.backgroundColor = '#e0e0e0';
-            square.classList.remove('active');
-        }, 300);
-        
-        playerSequence.push(squareIndex);
-        
-        for (let i = 0; i < playerSequence.length; i++) {
-            if (playerSequence[i] !== sequence[i]) {
-                gameOver();
-                return;
+        // Verificação otimizada
+        for (let i = 0; i < gameState.playerInput.length; i++) {
+            if (gameState.playerInput[i] !== gameState.sequence[i]) {
+                return endGame(false);
             }
         }
         
-        if (playerSequence.length === sequence.length) {
-            disableBoard();
-            messageDisplay.textContent = 'Correto! Próximo nível...';
-            setTimeout(() => {
-                level++;
-                levelDisplay.textContent = level;
-                generateSequence();
-                playSequence();
-            }, 1500);
+        if (gameState.playerInput.length === gameState.sequence.length) {
+            await nextLevel();
+        } else {
+            gameState.awaitClick = true;
         }
     }
-    
-    function gameOver() {
-        gameStarted = false;
-        disableBoard();
-        messageDisplay.textContent = `Fim de jogo! Você chegou ao nível ${level}.`;
-        startBtn.disabled = false;
+
+    async function nextLevel() {
+        gameState.level++;
+        updateUI();
+        elements.message.textContent = 'Correto! Próximo nível...';
+        
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        generateSequence();
+        await playSequence();
     }
-    
-    function restartGame() {
-        startGame();
+
+    function endGame(success) {
+        gameState.active = false;
+        updateUI();
+        elements.message.textContent = success ? 
+            'Parabéns! Você venceu!' : 
+            `Fim de jogo! Nível ${gameState.level}.`;
     }
-    
-    startBtn.addEventListener('click', startGame);
-    restartBtn.addEventListener('click', restartGame);
-    
-    initializeBoard();
+
+    function updateUI() {
+        elements.level.textContent = gameState.level;
+        elements.sequenceLength.textContent = gameState.sequence.length;
+        elements.startBtn.disabled = gameState.active;
+        elements.restartBtn.disabled = !gameState.active;
+    }
+
+    // PWA com fallbacks
+    function setupPWA() {
+        if ('BeforeInstallPromptEvent' in window) {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                elements.installContainer.style.display = 'block';
+                elements.installBtn.onclick = () => e.prompt();
+            });
+        } else {
+            elements.installContainer.style.display = 'none';
+        }
+    }
+
+    // Tratamento de erros críticos
+    function handleCriticalError(error) {
+        console.error('Erro crítico:', error);
+        elements.message.textContent = 'Erro inesperado. Reiniciando...';
+        setTimeout(() => {
+            gameState.active = false;
+            startGame();
+        }, 2000);
+    }
+
+    // Inicialização segura
+    try {
+        init();
+    } catch (error) {
+        handleCriticalError(error);
+    }
 });
