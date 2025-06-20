@@ -10,12 +10,29 @@ body {
     padding: 0;
     touch-action: manipulation;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .container {
     max-width: 100vw;
     padding: 1rem;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.game-info {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+    font-weight: 500;
 }
 
 .game-container {
@@ -25,6 +42,7 @@ body {
     box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
     margin: 0 auto;
     max-width: 24rem;
+    width: 100%;
 }
 
 .game-board {
@@ -51,18 +69,6 @@ body {
     transform: scale(0.98);
 }
 
-/* Otimizações para mobile */
-@media (max-width: 480px) {
-    .game-container {
-        padding: 1rem;
-    }
-    
-    .game-board {
-        gap: 0.5rem;
-    }
-}
-
-/* Controles com foco em performance */
 .controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -78,6 +84,7 @@ button {
     cursor: pointer;
     transition: filter 0.1s ease;
     will-change: filter;
+    font-size: 1rem;
 }
 
 button:active {
@@ -99,10 +106,18 @@ button:disabled {
     color: white;
 }
 
+.install-container {
+    margin-top: 1rem;
+    text-align: center;
+}
+
 #install-btn {
     background-color: #2196F3;
     color: white;
     width: 100%;
+    max-width: 24rem;
+    margin: 0 auto;
+    display: block;
 }
 
 .message {
@@ -111,4 +126,19 @@ button:disabled {
     font-weight: 500;
     margin: 0.5rem 0;
     will-change: contents;
+    color: #333;
+}
+
+@media (max-width: 480px) {
+    .game-container {
+        padding: 1rem;
+    }
+    
+    .game-board {
+        gap: 0.5rem;
+    }
+    
+    button {
+        padding: 0.6rem;
+    }
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'color-memory-v2';
+const CACHE_NAME = 'color-memory-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -13,13 +13,7 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-    );
-});
-
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => response || fetch(event.request))
+            .then(() => self.skipWaiting())
     );
 });
 
@@ -33,6 +27,15 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
+    );
+});
+
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        caches.match(event.request)
+            .then((response) => {
+                return response || fetch(event.request);
+            })
     );
 });

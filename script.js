@@ -1,17 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Configurações iniciais de performance
     'use strict';
     
-    // Controle de estado global
     const gameState = {
         active: false,
         sequence: [],
         playerInput: [],
         level: 1,
-        awaitClick: false
+        awaitClick: false,
+        lastColorIndex: -1
     };
 
-    // Elementos do DOM - cache otimizado
     const elements = {
         board: document.getElementById('game-board'),
         level: document.getElementById('level'),
@@ -23,38 +21,24 @@ document.addEventListener('DOMContentLoaded', () => {
         installContainer: document.getElementById('install-container')
     };
 
-    // Cores pré-calculadas
     const COLORS = [
         '#FF5733', '#33FF57', '#3357FF', 
         '#F3FF33', '#FF33F3', '#33FFF3',
         '#8A2BE2', '#FF8C00', '#008000'
     ];
     const NEUTRAL_COLOR = '#e0e0e0';
+    const ANIMATION_DURATION = 500;
+    const DELAY_BETWEEN_COLORS = 300;
 
-    // Pool de objetos para reutilização
-    const animationPool = {
-        active: [],
-        available: [],
-        get: function() {
-            return this.available.pop() || {};
-        },
-        release: function(obj) {
-            this.active = this.active.filter(item => item !== obj);
-            this.available.push(obj);
-        }
-    };
+    let deferredPrompt;
 
-    // Inicialização otimizada
     function init() {
         setupBoard();
         setupEventListeners();
         setupPWA();
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(console.error);
-        }
+        registerServiceWorker();
     }
 
-    // Configuração do tabuleiro com performance
     function setupBoard() {
         elements.board.innerHTML = '';
         const fragment = document.createDocumentFragment();
@@ -70,15 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.board.appendChild(fragment);
     }
 
-    // Event listeners otimizados
     function setupEventListeners() {
-        // Delegation de eventos para melhor performance
         elements.board.addEventListener('click', handleBoardClick);
         elements.startBtn.addEventListener('click', startGame);
         elements.restartBtn.addEventListener('click', startGame);
     }
 
-    // Controle do jogo principal
     function startGame() {
         if (gameState.active) return;
         
@@ -94,67 +75,46 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.playerInput = [];
         gameState.level = 1;
         gameState.awaitClick = false;
+        gameState.lastColorIndex = -1;
+        elements.message.textContent = '';
     }
 
     function generateSequence() {
-        let lastIndex = -1;
+        // Aumenta a sequência em apenas 1 cor por nível
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * COLORS.length);
+        } while (newIndex === gameState.lastColorIndex && COLORS.length > 1);
         
-        // Algoritmo Fisher-Yates moderno
-        for (let i = 0; i < gameState.level; i++) {
-            let newIndex;
-            do {
-                newIndex = Math.floor(Math.random() * COLORS.length);
-            } while (newIndex === lastIndex && COLORS.length > 1);
-            
-            gameState.sequence.push(newIndex);
-            lastIndex = newIndex;
-        }
+        gameState.sequence.push(newIndex);
+        gameState.lastColorIndex = newIndex;
     }
 
-    // Sequência com tratamento de erro robusto
     async function playSequence() {
         gameState.awaitClick = false;
         
         for (let i = 0; i < gameState.sequence.length; i++) {
-            await animateSquare(gameState.sequence[i], 400);
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await animateSquare(gameState.sequence[i]);
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_COLORS));
         }
         
         gameState.playerInput = [];
         gameState.awaitClick = true;
     }
 
-    // Animação com pool de objetos
-    function animateSquare(index, duration) {
+    function animateSquare(index) {
         return new Promise(resolve => {
             const square = elements.board.children[index];
-            const animation = animationPool.get();
-            
-            animation.onFinish = () => {
-                square.style.backgroundColor = NEUTRAL_COLOR;
-                animationPool.release(animation);
-                resolve();
-            };
             
             square.style.backgroundColor = COLORS[index];
-            animationPool.active.push(animation);
             
-            // Usa requestAnimationFrame para performance
-            const start = performance.now();
-            const animate = (time) => {
-                const elapsed = time - start;
-                if (elapsed >= duration) {
-                    animation.onFinish();
-                } else {
-                    requestAnimationFrame(animate);
-                }
-            };
-            
-            requestAnimationFrame(animate);
+            setTimeout(() => {
+                square.style.backgroundColor = NEUTRAL_COLOR;
+                resolve();
+            }, ANIMATION_DURATION);
         });
     }
 
-    // Controle de input com debounce
     function handleBoardClick(e) {
         if (!gameState.active || !gameState.awaitClick) return;
         
@@ -165,20 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
         processPlayerInput(index).catch(handleCriticalError);
     }
 
-    // Processamento seguro do input
     async function processPlayerInput(index) {
         gameState.awaitClick = false;
         
-        await animateSquare(index, 300);
+        await animateSquare(index);
         gameState.playerInput.push(index);
         
-        // Verificação otimizada
-        for (let i = 0; i < gameState.playerInput.length; i++) {
-            if (gameState.playerInput[i] !== gameState.sequence[i]) {
-                return endGame(false);
-            }
+        // Verifica se o input está correto
+        if (gameState.playerInput[gameState.playerInput.length - 1] !== 
+            gameState.sequence[gameState.playerInput.length - 1]) {
+            return endGame(false);
         }
         
+        // Verifica se completou a sequência
         if (gameState.playerInput.length === gameState.sequence.length) {
             await nextLevel();
         } else {
@@ -191,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
         elements.message.textContent = 'Correto! Próximo nível...';
         
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
         generateSequence();
         await playSequence();
     }
@@ -211,20 +170,44 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.restartBtn.disabled = !gameState.active;
     }
 
-    // PWA com fallbacks
     function setupPWA() {
-        if ('BeforeInstallPromptEvent' in window) {
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                elements.installContainer.style.display = 'block';
-                elements.installBtn.onclick = () => e.prompt();
-            });
-        } else {
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            elements.installContainer.style.display = 'block';
+        });
+
+        elements.installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                elements.installContainer.style.display = 'none';
+            }
+            
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
             elements.installContainer.style.display = 'none';
+            deferredPrompt = null;
+        });
+    }
+
+    function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registrado com sucesso:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Falha ao registrar ServiceWorker:', error);
+                });
         }
     }
 
-    // Tratamento de erros críticos
     function handleCriticalError(error) {
         console.error('Erro crítico:', error);
         elements.message.textContent = 'Erro inesperado. Reiniciando...';
@@ -234,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 2000);
     }
 
-    // Inicialização segura
     try {
         init();
     } catch (error) {
