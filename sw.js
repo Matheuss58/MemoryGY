@@ -1,44 +1,45 @@
-const CACHE_NAME = 'color-memory-v4';
-const ASSETS_TO_CACHE = [
+const CACHE_NAME = 'memoria-cores-v2';
+const ASSETS = [
     './',
     './index.html',
     './styles.css',
     './script.js',
-    './manifest.json'
+    './manifest.json',
+    './icons/icon-192.png',
+    './icons/icon-512.png'
 ];
 
-self.addEventListener('install', (event) => {
-    console.log('Service Worker installing');
+// Instala o Service Worker e faz cache dos arquivos
+self.addEventListener('install', event => {
+    console.log('[ServiceWorker] Instalando...');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('Caching assets');
-                return cache.addAll(ASSETS_TO_CACHE);
+            .then(cache => {
+                console.log('[ServiceWorker] Fazendo cache dos arquivos');
+                return cache.addAll(ASSETS);
             })
-            .then(() => self.skipWaiting())
     );
 });
 
-self.addEventListener('activate', (event) => {
-    console.log('Service Worker activating');
+// Ativa e remove caches antigos
+self.addEventListener('activate', event => {
+    console.log('[ServiceWorker] Ativado');
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cache) => {
-                    if (cache !== CACHE_NAME) {
-                        console.log('Deleting old cache');
-                        return caches.delete(cache);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim())
+        caches.keys().then(keys => 
+            Promise.all(
+                keys
+                    .filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+            )
+        )
     );
 });
 
-self.addEventListener('fetch', (event) => {
+// Intercepta as requisições e serve do cache, se possível
+self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request)
-            .then((response) => {
+            .then(response => {
                 return response || fetch(event.request);
             })
     );

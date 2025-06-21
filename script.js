@@ -256,17 +256,18 @@ function handleBoardClick(e) {
     });
 }
 
-    function registerServiceWorker() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('ServiceWorker registrado com sucesso:', registration.scope);
-                })
-                .catch(error => {
-                    console.error('Falha ao registrar ServiceWorker:', error);
-                });
-        }
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .then(registration => {
+                console.log('ServiceWorker registrado com sucesso no escopo:', registration.scope);
+            })
+            .catch(error => {
+                console.error('Falha ao registrar ServiceWorker:', error);
+            });
     }
+}
+
 
     function handleCriticalError(error) {
         console.error('Erro crítico:', error);

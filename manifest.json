@@ -1,20 +1,23 @@
 {
-    "name": "Jogo de Memória de Cores",
-    "short_name": "Memória Cores",
-    "start_url": "./index.html",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#4CAF50",
-    "icons": [
-        {
-            "src": "icon-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icon-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ]
+  "name": "Jogo de Memória de Cores",
+  "short_name": "Memória de Cores",
+  "description": "Treine sua memória com este jogo divertido de sequência de cores.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#e0e0e0",
+  "theme_color": "#4CAF50",
+  "orientation": "portrait",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
